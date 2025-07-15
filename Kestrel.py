@@ -28,7 +28,7 @@ from PyQt6.QtCore import QSettings
 # --- سیستم ترجمه ---
 TRANSLATIONS = {
     "en": {
-        "window_title": "Dukascopy Data Importer",
+        "window_title": "Kestrel",
         "settings_group": "Download Settings",
         "symbol_label": "Symbol:",
         "timeframe_label": "Timeframe:",
@@ -72,7 +72,7 @@ TRANSLATIONS = {
         "db_token_label": "Token:",
     },
     "fa": {
-        "window_title": "ایمپورتر داده Dukascopy",
+        "window_title": "Kestrel",
         "settings_group": "تنظیمات دانلود",
         "symbol_label": "نماد:",
         "timeframe_label": "تایم فریم:",
