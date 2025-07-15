@@ -6,6 +6,8 @@
 Whether you're a **financial analyst**, **quantitative trader**, or **developer**, Kestrel gives you full control over how and when to fetch your data — even in restricted network environments.
 
 ---
+![Preview](/screenshots/preview.png)
+---
 
 ## 🚀 Features
 
