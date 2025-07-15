@@ -30,8 +30,15 @@ jobs:
         with:
           python-version: '3.10' # می‌توانید نسخه پایتون را تغییر دهید
 
-      # مرحله ۳: نصب کتابخانه‌های مورد نیاز
-      - name: Install dependencies
+      # --- مرحله جدید: نصب نیازمندی‌های سیستمی برای لینوکس ---
+      - name: Install Linux GUI dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx libegl1-mesa libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xfixes0 libxcb-xinerama0
+
+      # مرحله ۳: نصب کتابخانه‌های مورد نیاز پایتون
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -41,9 +48,6 @@ jobs:
       - name: Build executable with PyInstaller
         run: |
           # در اینجا 'kestrel.py' نام فایل اصلی برنامه شماست. اگر نام دیگری دارد، آن را تغییر دهید.
-          # --onefile: همه چیز را در یک فایل اجرایی جمع می‌کند
-          # --windowed: کنسول سیاه (CMD) را در ویندوز هنگام اجرا نشان نمی‌دهد
-          # --name: نام فایل خروجی را تعیین می‌کند
           pyinstaller --name kestrel --onefile --windowed kestrel.py
 
       # مرحله ۵: آماده‌سازی فایل‌ها برای آپلود
@@ -74,14 +78,24 @@ jobs:
           echo "ASSET_NAME=${ASSET_NAME}.zip" >> $GITHUB_OUTPUT
 
       # مرحله ۶: آپلود فایل اجرایی به بخش Releases
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         with:
           # این توکن به صورت خودکار توسط گیت‌هاب ساخته می‌شود
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # آدرس آپلود از روی تگ ساخته می‌شود
-          upload_url: ${{ github.event.release.upload_url }}
+          # آدرس آپلود از مرحله ساخت Release گرفته می‌شود
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ steps.prepare_artifacts.outputs.ASSET_PATH }}
           asset_name: ${{ steps.prepare_artifacts.outputs.ASSET_NAME }}
           asset_content_type: application/zip
-
