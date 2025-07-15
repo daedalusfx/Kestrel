@@ -31,11 +31,22 @@ jobs:
           python-version: '3.10' # می‌توانید نسخه پایتون را تغییر دهید
 
       # --- مرحله جدید: نصب نیازمندی‌های سیستمی برای لینوکس ---
-      - name: Install Linux GUI dependencies
+      - name: Install Linux GUI dependencies (Ubuntu 24.04+)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx libegl1-mesa libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xfixes0 libxcb-xinerama0
+          sudo apt-get install -y \
+            libgl1 \
+            libegl1 \
+            libxkbcommon-x11-0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xfixes0 \
+            libxcb-xinerama0
 
       # مرحله ۳: نصب کتابخانه‌های مورد نیاز پایتون
       - name: Install Python dependencies
