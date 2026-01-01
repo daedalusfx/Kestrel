@@ -3,8 +3,9 @@ import os
 import re
 import time
 import shutil
+import json 
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta  
+from dateutil.relativedelta import relativedelta
 
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
@@ -12,7 +13,7 @@ from PyQt6.QtWidgets import (
     QMessageBox, QSpinBox, QDateEdit, QCheckBox, QProgressBar, QFrame
 )
 from PyQt6.QtCore import QProcess, QDateTime, Qt, QSettings
-from PyQt6.QtGui import QFont, QColor, QPalette
+from PyQt6.QtGui import QFont
 
 class KestrelLite(QWidget):
     def __init__(self):
@@ -20,8 +21,9 @@ class KestrelLite(QWidget):
         self.process = None
         self.is_running = False
         
-        # Queue Management for Chunking
+        # Queue Management
         self.chunks_queue = []
+        self.session_files = []
         self.total_chunks = 0
         self.current_chunk_index = 0
         self.retry_count = 0
@@ -36,8 +38,8 @@ class KestrelLite(QWidget):
         self.load_settings()
 
     def init_ui(self):
-        self.setWindowTitle("Kestrel Lite - Data Downloader")
-        self.setGeometry(300, 300, 700, 850)
+        self.setWindowTitle("Kestrel Lite - Auto Merger")
+        self.setGeometry(300, 300, 700, 900)
         
         # Main Layout
         main_layout = QVBoxLayout(self)
@@ -89,10 +91,15 @@ class KestrelLite(QWidget):
         self.to_date_edit.setDisplayFormat("yyyy-MM-dd")
         settings_layout.addWidget(self.to_date_edit, 1, 3)
 
-        # Proxy
+        # Options
         self.proxy_check = QCheckBox("Enable Proxychains")
-        self.proxy_check.setToolTip("Prefixes the command with 'proxychains' for censored networks.")
+        self.proxy_check.setToolTip("Prefixes command with 'proxychains' for censored networks.")
         settings_layout.addWidget(self.proxy_check, 2, 0, 1, 2)
+
+        self.merge_check = QCheckBox("Merge into single file")
+        self.merge_check.setChecked(True)
+        self.merge_check.setToolTip("Merges all monthly files into one large JSON and deletes parts.")
+        settings_layout.addWidget(self.merge_check, 2, 2, 1, 2)
 
         main_layout.addWidget(settings_frame)
 
@@ -131,99 +138,31 @@ class KestrelLite(QWidget):
                 font-family: 'Segoe UI', sans-serif;
                 font-size: 14px;
             }
-            QLabel {
-                color: #bac2de;
-                font-weight: 500;
-            }
-            QLabel#header {
-                font-size: 28px;
-                font-weight: bold;
-                color: #89b4fa;
-                margin-bottom: 5px;
-            }
-            QLabel#subheader {
-                font-size: 14px;
-                color: #6c7086;
-                margin-bottom: 10px;
-            }
-            QFrame#panel {
-                background-color: #313244;
-                border-radius: 10px;
-                border: 1px solid #45475a;
-            }
+            QLabel { color: #bac2de; font-weight: 500; }
+            QLabel#header { font-size: 28px; font-weight: bold; color: #89b4fa; margin-bottom: 5px; }
+            QLabel#subheader { font-size: 14px; color: #6c7086; margin-bottom: 10px; }
+            QFrame#panel { background-color: #313244; border-radius: 10px; border: 1px solid #45475a; }
             QComboBox, QDateEdit, QSpinBox {
-                background-color: #45475a;
-                border: 1px solid #585b70;
-                border-radius: 6px;
-                padding: 8px;
-                color: #ffffff;
-                min-width: 100px;
+                background-color: #45475a; border: 1px solid #585b70; border-radius: 6px; padding: 8px; color: #ffffff; min-width: 100px;
             }
-            QComboBox:focus, QDateEdit:focus {
-                border: 1px solid #89b4fa;
-            }
-            QCheckBox {
-                spacing: 8px;
-                color: #a6adc8;
-            }
+            QCheckBox { spacing: 8px; color: #a6adc8; }
             QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 4px;
-                border: 1px solid #585b70;
-                background-color: #45475a;
+                width: 18px; height: 18px; border-radius: 4px; border: 1px solid #585b70; background-color: #45475a;
             }
-            QCheckBox::indicator:checked {
-                background-color: #a6e3a1;
-                border-color: #a6e3a1;
-            }
+            QCheckBox::indicator:checked { background-color: #a6e3a1; border-color: #a6e3a1; }
             QPushButton#action_btn {
-                background-color: #89b4fa;
-                color: #1e1e2e;
-                border-radius: 8px;
-                padding: 12px;
-                font-weight: bold;
-                font-size: 15px;
+                background-color: #89b4fa; color: #1e1e2e; border-radius: 8px; padding: 12px; font-weight: bold; font-size: 15px;
             }
-            QPushButton#action_btn:hover {
-                background-color: #b4befe;
-            }
-            QPushButton#action_btn:checked {
-                background-color: #f38ba8; /* Red for Stop */
-                color: #1e1e2e;
-            }
+            QPushButton#action_btn:hover { background-color: #b4befe; }
+            QPushButton#action_btn:checked { background-color: #f38ba8; color: #1e1e2e; }
             QProgressBar {
-                border: 1px solid #45475a;
-                border-radius: 8px;
-                background-color: #313244;
-                color: #ffffff;
-                height: 25px;
-                text-align: center;
+                border: 1px solid #45475a; border-radius: 8px; background-color: #313244; color: #ffffff; height: 25px; text-align: center;
             }
-            QProgressBar::chunk {
-                background-color: #a6e3a1;
-                border-radius: 8px;
-            }
+            QProgressBar::chunk { background-color: #a6e3a1; border-radius: 8px; }
             QPlainTextEdit {
-                background-color: #181825;
-                border: 1px solid #313244;
-                border-radius: 8px;
-                color: #a6adc8;
-                font-family: 'Consolas', monospace;
-                font-size: 12px;
+                background-color: #181825; border: 1px solid #313244; border-radius: 8px; color: #a6adc8; font-family: 'Consolas', monospace; font-size: 12px;
             }
-            QGroupBox {
-                border: 1px solid #45475a;
-                border-radius: 8px;
-                margin-top: 20px;
-                font-weight: bold;
-                color: #89b4fa;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
+            QGroupBox { border: 1px solid #45475a; border-radius: 8px; margin-top: 20px; font-weight: bold; color: #89b4fa; }
         """)
 
     # --- Logic ---
@@ -236,7 +175,6 @@ class KestrelLite(QWidget):
             chunk_end = current + relativedelta(months=1) - timedelta(days=1)
             if chunk_end > end_date:
                 chunk_end = end_date
-            
             chunks.append((current.strftime("%Y-%m-%d"), chunk_end.strftime("%Y-%m-%d")))
             current = current + relativedelta(months=1)
         return chunks
@@ -251,7 +189,7 @@ class KestrelLite(QWidget):
         # UI Updates
         self.is_running = True
         self.run_button.setText("Stop Download")
-        self.run_button.setChecked(True) # Styles it as 'Stop'
+        self.run_button.setChecked(True)
         self.log_output.clear()
         
         # Get Inputs
@@ -266,6 +204,7 @@ class KestrelLite(QWidget):
 
         # Prepare Queue
         self.chunks_queue = self.generate_monthly_chunks(start_date, end_date)
+        self.session_files = []
         self.total_chunks = len(self.chunks_queue)
         self.current_chunk_index = 0
         
@@ -286,17 +225,16 @@ class KestrelLite(QWidget):
 
     def run_next_chunk(self):
         if not self.is_running: return
+        
+        # اگر همه تکه‌ها تمام شدند، برو برای ادغام
         if self.current_chunk_index >= self.total_chunks:
-            self.log("✨ All downloads completed successfully!")
-            self.progress_bar.setFormat("Done")
-            self.stop_process()
+            self.finalize_downloads()
             return
 
         chunk_start, chunk_end = self.chunks_queue[self.current_chunk_index]
         self.progress_bar.setFormat(f"Downloading: {chunk_start} to {chunk_end}")
         self.log(f"📦 Processing chunk {self.current_chunk_index + 1}/{self.total_chunks}: {chunk_start} -> {chunk_end}")
 
-        # Construct Command
         symbol = self.symbol_combo.currentText()
         tf = self.timeframe_combo.currentText()
         
@@ -306,7 +244,7 @@ class KestrelLite(QWidget):
                 "-to", chunk_end,
                 "-t", tf,
                 "-f", "json",
-                "-v", "true"] # Volumes included
+                "-v", "true"]
 
         command = "npx"
         if self.proxy_check.isChecked():
@@ -332,12 +270,10 @@ class KestrelLite(QWidget):
                 self.log(f"   💾 Temp file: {self.current_downloaded_file}")
 
     def handle_stderr(self):
-        # Filter noise, only show real errors if needed
         pass
 
     def chunk_finished(self, exit_code, exit_status):
         if exit_code == 0 and self.current_downloaded_file and os.path.exists(self.current_downloaded_file):
-            # Move file to downloads folder with a clean name
             try:
                 symbol = self.symbol_combo.currentText().upper()
                 tf = self.timeframe_combo.currentText()
@@ -346,13 +282,15 @@ class KestrelLite(QWidget):
                 destination = os.path.join(self.download_dir, new_filename)
                 
                 shutil.move(self.current_downloaded_file, destination)
-                self.log(f"   ✅ Saved to: downloads/{new_filename}")
+                
+                self.session_files.append(destination)
+                
+                self.log(f"   ✅ Saved chunk to: downloads/{new_filename}")
                 
                 self.current_chunk_index += 1
                 self.progress_bar.setValue(self.current_chunk_index)
                 self.retry_count = 0
                 
-                # Small delay to prevent API flooding/UI freeze
                 time.sleep(0.5)
                 self.run_next_chunk()
                 
@@ -375,9 +313,58 @@ class KestrelLite(QWidget):
             self.retry_count = 0
             self.run_next_chunk()
 
+    def finalize_downloads(self):
+        """Called when all chunks are downloaded. Merges files if requested."""
+        if self.merge_check.isChecked() and self.session_files:
+            self.log("\n🧩 All chunks downloaded. Merging files...")
+            self.progress_bar.setFormat("Merging Files...")
+            QApplication.processEvents()
+
+            try:
+                merged_data = []
+                # فایل‌ها را بر اساس نام مرتب می‌کنیم تا ترتیب زمانی حفظ شود
+                self.session_files.sort()
+                
+                for filepath in self.session_files:
+                    try:
+                        with open(filepath, 'r') as f:
+                            data = json.load(f)
+                            if isinstance(data, list):
+                                merged_data.extend(data)
+                    except Exception as e:
+                        self.log(f"   ⚠️ Could not read {os.path.basename(filepath)}: {e}")
+
+                if merged_data:
+                    # ساخت نام فایل نهایی
+                    symbol = self.symbol_combo.currentText().lower()
+                    tf = self.timeframe_combo.currentText()
+                    start_str = self.chunks_queue[0][0]
+                    end_str = self.chunks_queue[-1][1]
+                    
+                    final_filename = f"{symbol}-{tf}-bid-{start_str}-{end_str}.json"
+                    final_path = os.path.join(self.download_dir, final_filename)
+
+                    with open(final_path, 'w') as f:
+                        json.dump(merged_data, f, indent=2) # indent=2 برای خوانایی
+                    
+                    self.log(f"✅ MERGE SUCCESS: {final_filename}")
+                    
+                    # پاک کردن فایل‌های تکه تکه
+                    self.log("🗑️ Deleting partial chunk files...")
+                    for filepath in self.session_files:
+                        os.remove(filepath)
+                else:
+                    self.log("⚠️ No data found to merge.")
+
+            except Exception as e:
+                self.log(f"❌ Merge Failed: {e}")
+
+        self.log("\n✨ Process Complete!")
+        self.progress_bar.setFormat("Done")
+        self.stop_process()
+
     def log(self, message):
         self.log_output.appendPlainText(message)
-        # Auto scroll
         cursor = self.log_output.textCursor()
         cursor.movePosition(cursor.MoveOperation.End)
         self.log_output.setTextCursor(cursor)
@@ -387,12 +374,14 @@ class KestrelLite(QWidget):
         self.symbol_combo.setCurrentText(settings.value("symbol", "eurusd"))
         self.timeframe_combo.setCurrentText(settings.value("timeframe", "m5"))
         self.proxy_check.setChecked(settings.value("proxy", False, type=bool))
+        self.merge_check.setChecked(settings.value("merge", True, type=bool))
 
     def closeEvent(self, event): # type: ignore
         settings = QSettings("KestrelLite", "Configs")
         settings.setValue("symbol", self.symbol_combo.currentText())
         settings.setValue("timeframe", self.timeframe_combo.currentText())
         settings.setValue("proxy", self.proxy_check.isChecked())
+        settings.setValue("merge", self.merge_check.isChecked())
         if self.process: self.process.kill()
         event.accept()
 
