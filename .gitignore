@@ -1,0 +1,5 @@
+node_modules
+.dukascopy-cache
+*.json
+*.js
+*.sh
