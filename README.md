@@ -1,49 +1,41 @@
 
 # 🐦 Kestrel: Dukascopy Data Importer
 
-**Kestrel** is a modern, bilingual, and user-friendly desktop application designed to help you download historical market data from **Dukascopy** and import it directly into an **InfluxDB** database — all with a few clicks.
 
-Whether you're a **financial analyst**, **quantitative trader**, or **developer**, Kestrel gives you full control over how and when to fetch your data — even in restricted network environments.
+**Kestrel** is a streamlined, resilient, and user-friendly desktop application designed to download historical market data from **Dukascopy** with ease.
+
+Unlike the previous version, **Kestrel** focuses purely on file generation. It downloads data in **monthly chunks** to prevent timeouts on unstable connections and automatically **merges** them into a single, clean JSON file. No database setup required—just pure data.
 
 ---
 ![Preview](/screenshots/preview.png)
 ---
 
-## 🚀 Features
+## 🚀 Key Features
 
-* **Modern Dark UI**
-  Built with PyQt6 and styled with a sleek, distraction-free dark theme.
+* **🛡️ Smart Chunking Engine**
+    Downloads data month-by-month. If your internet cuts out in December, you won't lose the data downloaded from January to November. The app retries failed chunks automatically.
 
-* **Bilingual Interface (English / فارسی)**
-  Switch languages instantly with one click — fully localized UI and messages.
+* **🧩 Auto-Merge Capability**
+    Once all monthly chunks are downloaded, Kestrel automatically merges them into one single JSON file and cleans up the temporary parts.
+    * *Output Format:* `symbol-timeframe-bid-start-end.json`
 
-* **Flexible Download Modes**
+* **🎨 Modern Catppuccin UI**
+    Redesigned from the ground up with a soothing, professional dark theme (Catppuccin style) for better readability and a modern look.
 
-  * **Latest Candles**: Retrieve a fixed number of recent bars (e.g., last 1000 H1 candles).
-  * **Date Range**: Define exact start and end dates to get the data you need.
+* **🔒 Proxychains Support**
+    Easily route your requests through **Proxychains** (or Tor) with a single checkbox to bypass censorship or firewalls.
 
-* **Direct Import to InfluxDB**
-  Automatically parses the downloaded data and sends it to your InfluxDB instance — correctly timestamped and formatted.
+* **📂 Organized Output**
+    Automatically creates a `downloads` folder and saves your files there, keeping your workspace clean.
 
-* **Tor Proxy Support**
-  One checkbox enables routing through the **Tor network**, bypassing censorship or firewalls in restricted regions.
-
-* **Live Logging Panel**
-  View real-time output of the data-fetching and database import process inside the application.
-
-* **Configurable InfluxDB Settings**
-  Input and save your InfluxDB **URL**, **Token**, **Organization**, and **Bucket** directly from the GUI.
-
-* **Smart Error Handling**
-  Detects and warns about empty or malformed JSON files before import — preventing silent data issues.
+* **⚡ Lightweight & Fast**
+    Stripped of heavy database dependencies (InfluxDB) and translation layers. It does one thing and does it well: fetching your data.
 
 ---
 
 ## 🐦 Why “Kestrel”?
 
-Named after the **kestrel falcon**, known for its **precision**, **agility**, and the ability to **hover mid-air** before striking. These traits mirror the goals of this tool: precision in data, agility in access, and control in execution.
-
-We hope this name also brings a little more attention to this beautiful bird of prey.
+Named after the **kestrel falcon**, known for its **precision** and ability to **hover** against the wind. This tool mirrors that stability: hovering through unstable network conditions to precisely capture the data you need.
 
 ---
 
@@ -52,52 +44,39 @@ We hope this name also brings a little more attention to this beautiful bird of 
 Make sure the following are installed before running the app:
 
 * **Python 3.x**
-* **PyQt6**
-  Install with: `pip install PyQt6`
-* **InfluxDB Python Client**
-  Install with: `pip install influxdb-client`
-* **Node.js + npx**
-  Required to run `dukascopy-node`
-* **Tor + Torsocks** (optional, for censored networks)
-  Example for Debian/Ubuntu:
-  `sudo apt update && sudo apt install tor torsocks`
-* **InfluxDB 2.x or newer**
-  A running instance accessible over HTTP.
+* **Node.js + npx** (Required for the core data fetching)
+* **Python Dependencies:**
+    ```bash
+    pip install PyQt6 python-dateutil
+    ```
+* **Proxychains** (Optional, for censored networks)
+    * Linux/Mac: `sudo apt install proxychains` (or via brew)
 
 ---
 
-## ⚙️ Setup & Usage
+## ⚙️ Usage
 
-### 1. Clone the Repository
-
-```bash
-git clone <your-repository-url>
-cd kestrel-importer
-```
-
-### 2. Install Dependencies
-
-Ensure all components listed in the **Requirements** section are installed.
-
-### 3. Run the Application
+### 1. Run the Application
 
 ```bash
-python main.py
+python Kestrel.py
+
 ```
 
-### 4. Using the App
+### 2. Configure Your Download
 
-* **Configure InfluxDB**:
-  Enter your connection details under the **Settings** tab. Values are saved automatically.
+* **Symbol & Timeframe**: Select your desired instrument (e.g., `gbpaud`) and timeframe (e.g., `h1`).
+* **Date Range**: Pick your Start and End dates.
+* **Proxychains**: Check this box if you need to bypass internet restrictions.
+* **Merge**: Keep this checked to get a single output file. Uncheck it if you prefer separate monthly files.
 
-* **Set Download Parameters**:
-  Choose your **symbol**, **timeframe**, and **download mode** (bars or date range).
+### 3. Start
 
-* **Enable Tor (if needed)**:
-  Check the "Use Tor Proxy" box if you’re in a restricted region.
+Click **Start Download**. The app will:
 
-* **Start Import**:
-  Click “Start Download & Import” and watch the live logs as data flows in.
+1. Calculate the monthly chunks.
+2. Download them one by one (displaying progress).
+3. Merge them into a final file like: `gbpaud-h1-bid-2023-01-01-2023-12-20.json`.
 
 ---
 
